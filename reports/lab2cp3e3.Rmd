@@ -1,0 +1,124 @@
+---
+title: "Análise das músicas do Spotify"
+author: "Hadrizia Santos"
+date: "27 de maio de 2018"
+output: html_document
+---
+### Neste arquivo, será feita uma análise das músicas dos artistas Lorde, The Weeknd e The xx, disponíveis no Spotify. 
+
+    O primeiro passo é importar as bibliotecas e dados a serem utilizados nesta análise.
+```{r setup, include=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(plotly)
+library(viridis)
+theme_set(theme_minimal())
+
+musics = read_csv(here('/data/favs.csv'))
+```
+
+#### 1. Como estão distribuídas as emoções nas músicas dos artistas analisados?
+  Para responder a esta pergunta, considerou-se dois parâmetros: a energia e a valência. 
+  
+1. A energia vai de 0 a 1 e representa uma medida perceptual de intensidade e atividade. Normalmente, faixas energéticas são rápidas, altas e cheias de som. As características perceptivas que contribuem para esse atributo incluem a faixa dinâmica, a intensidade percebida, o timbre, a taxa de início e a entropia geral.
+2. A valência vai de 0 a 1 e descreve a positividade musical transmitida por uma faixa. Faixas com alta valência soam mais positivas (por exemplo, felizes, alegres, eufóricas), enquanto as faixas com baixa valência soam mais negativas (por exemplo, triste, deprimido, zangado).
+
+    O parâmetro definido por level descreve a dispersão das músicas: quanto maior, mais músicas estão concentradas naquele ponto.
+
+```{r message=FALSE}
+p <- musics %>% 
+    arrange(album_release_date) %>% 
+    ggplot(aes(x = energy, 
+               label = artist,
+               y = valence)) + 
+    stat_density2d(aes(fill=..level..), geom="polygon", n = 100, h = .25) +
+    scale_fill_viridis() + 
+    facet_wrap(~artist) + 
+    scale_x_continuous(limits = c(-.05, 1.05)) + 
+    scale_y_continuous(limits = c(-.05, 1.05)) + 
+    theme(legend.position = "None") + 
+    labs(title = "Emoção nas músicas segundo o spotify", 
+         subtitle = "A partir da análise de áudio de cada um", 
+         x = "Energia (+ = rápida, alta, cheia de sons)", 
+         y = "Valência (+ = animada, alegre, eufórica)")
+
+ggplotly(p)
+```
+    A partir do gráfico pode-se perceber que **The Weeknd** possui mais músicas energéticas, o que pode ser explicado pelo fato do cantor possuir músicas com gênero R&B meio hip-hop, sendo rápida e cheia de sons, enquanto os outros artistas possuem um gênero mais indie, com músicas mais amenas. Entre os três, **The xx** é a banda que possui mais músicas mais calmas e mais tristes (baixa valência). **Lorde** é a artista que possui mais músicas animadas e alegres.
+    A partir dessa análise, uma pergunta que pode ser feita é se o sentimento das músicas estão relacionadas com a popularidade das mesmas, ou seja, se as músicas populares são mais tristes ou felizes.
+
+#### 2. As músicas populares são mais felizes?
+    As músicas populares são as que possuem popularidade mais próxima de 100 possível, e as felizes são as que possuem valência alta (explicada acima). 
+    
+```{r}
+plot_ly(musics, x = musics$valence, y = musics$track_popularity, 
+       type ='scatter',
+       hoverinfo = 'text',
+       text = ~paste("Música:", musics$track_name,
+                      "\nArtista", musics$artist,
+                    "\nPopularidade:", musics$track_popularity,
+                    "\nÁlbum:", musics$album_name,
+                    "\nValência:", musics$valence),
+        mode = "markers", marker = list(symbol = 'star-dot', size = 13), 
+        color = musics$artist,
+        colors = c("#cccc66", "#cc66cc", "#66cccc")) %>% 
+        layout(title = "Populares e felizes", 
+           xaxis = list(
+               title = "Valência (+ = animada, alegre, eufórica)"),
+           yaxis = list(
+               title = "Popularidade"),
+           showlegend = FALSE)
+
+```
+   A partir do gráfico acima se pode observar que há pouca relação entre a popularidade da música e a valência e que as faixas estão distribuídas de forma mais concentrada entre 0 e 0.5 de valência (inclusive a música mais popular da coleção, Starboy, possui valência igual a 0.49). Uma informação interessante que esse gráfico mostra é que **The Weeknd** é o artista com músicas mais popularidades, mas só as músicas do álbum *Starboy*, pois a maioria está abaixo de 40. **The xx** possui todas as músicas distribuídas entre 45 e 70, o que pode indicar que possui fãs mais fiéis e carreira bem constante. **Lorde**, que possui músicas tão populares quanto The xx, mas possui algumas pouco populares e todas essas faixas são do álbum *Pure Heroine*, mais antigo da cantora (e o melhor, na minha opinião).  
+    
+#### 3. Quais são as emoções da banda The XX ao longo do álbum 'I See You'?
+    Além da energia e valência, a dançabilidade também será levada em conta, com valor entre 0 e 1 e baseada em uma combinação de elementos musicais, incluindo tempo, estabilidade de ritmo, força de batida e regularidade geral.
+```{r}
+i_see_you <- musics %>% filter(album_name == 'I See You')
+plot_ly(i_see_you, 
+        y = i_see_you$energy, 
+        x = i_see_you$valence,
+        size = i_see_you$danceability,
+        type ='scatter',
+        mode = "markers",
+        hoverinfo = 'text',
+        text = paste("Música: ", i_see_you$track_name,
+                     "\nDançabilidade: ", i_see_you$danceability,
+                     "\nEnergia: ", i_see_you$energy,
+                     "\nValência: ", i_see_you$valence)) %>%
+        layout(title = "Emoções do álbum 'I See You', de The xx", 
+           xaxis = list(
+               title = "Valência (+ = animada, alegre, eufórica)"),
+           yaxis = list(
+               title = "Energia (+ = rápida, alta, cheia de sons)"),
+           showlegend = FALSE)
+```
+    As músicas mais tristes do álbum são Test Me e Performance, possuindo pouca energia e menos ainda de valência. Alguns trechos das músicas podem confirmar essa informação: "*I don't know where I went wrong, Tell me, should I see someone? Ceiling's falling down on me You look but you never see*" (Test Me) e "*I'll put on a performance I'll put on a show It is a performance I do it all so You won't see my hurting When my heart it breaks I'll put on a performance I'll put on a brave face*" (Performance)
+    O álbum possui algumas faixas com energia baixa mas valência diversificada: A Violent Noise (com valência igual a 0.144), Brave For You (valência = 0.281) e Replica (valência = 0.511), ambas com dançabilidade mediana. Além dessas, algumas músicas possuem valência baixa e possuem muita energia, como é o caso de Lips e I Dare You (esta bem dançante).
+    As músicas mais alegres são também as mais energizantes e dançantes: On Hold, Say Something Loving (minha favorita do álbum! :star:) e Dangerous
+
+    Uma pergunta que poderia ser feita é se as músicas mais dançantes são também as mais felizes, ou se existem músicas bem dançantes mas tristes.
+
+#### 4. Músicas dançantes são também felizes?
+
+```{r}
+plot_ly(musics, x = musics$valence, y = musics$danceability, 
+       type ='scatter',
+       hoverinfo = 'text',
+       text = ~paste("Música:", musics$track_name,
+                      "\nArtista", musics$artist,
+                    "\nDançabilidade:", musics$danceability,
+                    "\nÁlbum:", musics$album_name,
+                    "\nValência:", musics$valence),
+        mode = "markers", marker = list(symbol = 'star-dot', size = 13), 
+        color = musics$artist,
+        colors = c("#cccc66", "#cc66cc", "#66cccc")) %>% 
+        layout(title = "Dançantes e felizes", 
+           xaxis = list(
+               title = "Valência (+ = animada, alegre, eufórica)"),
+           yaxis = list(
+               title = "Dançabilidade"),
+           showlegend = FALSE)
+```
+    Percebemos que existe sim uma relação entre a dançabilidade e a valência das músicas: faixas mais felizes tendem a ser mais dançantes, apesar da música mais dançante possuir pouca valência (Basic Space - The xx). **The xx** domina as músicas mais dançantes (fiquei bem surpresa). A música mais dançante de **Lorde** é Bitting Down e a de **The Weeknd** é A Lonely Night.
